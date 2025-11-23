@@ -1,6 +1,5 @@
 // Copyright © 2017 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: BSD-2-Clause
-//
 package nfs
 
 import (
@@ -969,4 +968,80 @@ func (v *Target) readlinkFh(fh []byte) (*Fattr, string, error) {
 	util.Debugf("readlink(%+v): attr: %+v, target: %s", fh, readlinkRes.SymlinkAttr.Attr, readlinkRes.Target)
 
 	return &readlinkRes.SymlinkAttr.Attr, readlinkRes.Target, nil
+}
+
+// SetAttr changes file attributes using NFSv3 SETATTR procedure
+func (v *Target) SetAttr(path string, attrs *Sattr3) error {
+	_, fh, err := v.Lookup(path)
+	if err != nil {
+		return err
+	}
+
+	type SetAttrArgs struct {
+		rpc.Header
+		Handle []byte
+		Attr   Sattr3
+		Guard  struct {
+			Check bool
+			Time  NFS3Time
+		}
+	}
+
+	res, err := v.call(&SetAttrArgs{
+		Header: rpc.Header{
+			Rpcvers: 2,
+			Prog:    Nfs3Prog,
+			Vers:    Nfs3Vers,
+			Proc:    NFSProc3SetAttr,
+			Cred:    v.auth,
+			Verf:    rpc.AuthNull,
+		},
+		Handle: fh,
+		Attr:   *attrs,
+		Guard: struct {
+			Check bool
+			Time  NFS3Time
+		}{
+			Check: false,
+		},
+	})
+
+	if err != nil {
+		util.Debugf("setattr(%s): %s", path, err.Error())
+		return err
+	}
+
+	// Read WCC data (we don't need it but must consume it)
+	var wcc WccData
+	if err := xdr.Read(res, &wcc); err != nil {
+		util.Debugf("setattr(%s): failed to read WCC data: %s", path, err.Error())
+		return err
+	}
+
+	util.Debugf("setattr(%s): success", path)
+	return nil
+}
+
+// Chmod changes file permissions (supports SUID/SGID/Sticky bits)
+func (v *Target) Chmod(path string, mode uint32) error {
+	return v.SetAttr(path, &Sattr3{
+		Mode: SetMode{
+			SetIt: true,
+			Mode:  mode,
+		},
+	})
+}
+
+// Chown changes file owner and group
+func (v *Target) Chown(path string, uid, gid uint32) error {
+	return v.SetAttr(path, &Sattr3{
+		UID: SetUID{
+			SetIt: true,
+			UID:   uid,
+		},
+		GID: SetUID{ // Note: GID field is typed as SetUID in Sattr3
+			SetIt: true,
+			UID:   gid,
+		},
+	})
 }
