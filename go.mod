@@ -1,4 +1,4 @@
-module github.com/go-nfs/nfsv3
+module github.com/AnvithLobo/nfsv3
 
 go 1.15
 

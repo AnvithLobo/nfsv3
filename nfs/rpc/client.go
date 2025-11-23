@@ -1,6 +1,5 @@
 // Copyright © 2017 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: BSD-2-Clause
-//
 package rpc
 
 import (
@@ -14,8 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-nfs/nfsv3/nfs/util"
-	"github.com/go-nfs/nfsv3/nfs/xdr"
+	"github.com/AnvithLobo/nfsv3/nfs/util"
+	"github.com/AnvithLobo/nfsv3/nfs/xdr"
 )
 
 const (
